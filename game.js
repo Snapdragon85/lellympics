@@ -51,7 +51,7 @@ const platforms = [
     },
     {
         x: 0,
-        y: 500,
+        y: (canvas.height - 10),
         width: 1500,
         height: 110
     }
