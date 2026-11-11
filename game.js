@@ -1,6 +1,7 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
+
 function resizeCanvas() {
     const scale = Math.min(
         window.innerWidth / 1000,
@@ -142,6 +143,26 @@ const rooms = [
                 height: 50,
                 health: 3,
                 vx: 2,
+                vy: 0,
+                grounded: false,
+                gravityWeight: 0.3
+            }
+        ]
+    },
+    {
+        platforms: [
+            { x: 0, y: 500, width: 1000, height: 110 },
+            { x: 150, y: 390, width: 200, height: 20 },
+            { x: 650, y: 390, width: 200, height: 20 }
+        ],
+        enemies: [
+            {
+                x: 700,
+                y: 350,
+                width: 100,
+                height: 150,
+                health: 20,
+                vx: 0,
                 vy: 0,
                 grounded: false,
                 gravityWeight: 0.3
@@ -336,6 +357,30 @@ function drawPlayer() {
         15
     );
 
+    ctx.fillStyle = "#333333";
+    ctx.fillRect(20, 65, 150, 10);
+
+    const cooldownProgress = Math.max(
+        0,
+        Math.min(1, 1 - shotCooldown / 0.5)
+    );
+
+    ctx.fillStyle = "#22ffff";
+    ctx.fillRect(
+        20,
+        65,
+        150 * cooldownProgress,
+        10
+    );
+    ctx.fillStyle = "white";
+    ctx.font = "12px Arial";
+    ctx.textAlign = "left";
+    ctx.fillText("SHOT READY", 20, 60);
+
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(20, 65, 150, 10);
+
     ctx.strokeStyle = "white";
     ctx.lineWidth = 2;
     ctx.strokeRect(20, 20, 150, 15);
@@ -347,6 +392,33 @@ function drawPlayer() {
 
         ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    if (currentRoom === 2 && enemies.length > 0) {
+        const boss = enemies[0];
+
+        // Background
+        ctx.fillStyle = "#333333";
+        ctx.fillRect(250, 25, 500, 20);
+
+        // Health
+        ctx.fillStyle = "#ff3333";
+        ctx.fillRect(
+            250,
+            25,
+            500 * (boss.health / 20),
+            20
+        );
+
+        // Border
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(250, 25, 500, 20);
+
+        // Label
+        ctx.fillStyle = "white";
+        ctx.font = "16px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("BOSS", 500, 17);
     }
 }
 
