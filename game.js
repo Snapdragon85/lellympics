@@ -1,7 +1,6 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-
 function resizeCanvas() {
     const scale = Math.min(
         window.innerWidth / 1000,
