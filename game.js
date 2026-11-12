@@ -26,6 +26,12 @@ const backgroundImage = new Image();
 backgroundImage.src = "sprites/background.jpg";
 const jumpingImage = new Image();
 jumpingImage.src = "sprites/player_jumping.png";
+const bossImage = new Image();
+bossImage.src = "sprites/evilell.png";
+const bossLaughSound = new Audio("sounds/boss_laugh.mp3");
+const jumpSound = new Audio("sounds/jump.mp3");
+const shootSound = new Audio("sounds/shoot.mp3");
+
 
 const handImages = [];
 
@@ -38,11 +44,14 @@ for (let i = 0; i <= 5; i++) {
     handImages.push(img);
 }
 
+let gameStarted = false;
+
 let projectiles = [];
 let shotCooldown = 5;
 
 let damageCooldown = 0;
 let gameOver = false;
+let gameWon = false;
 
 let animationTime = 0;
 let currentStretch = 1;
@@ -54,6 +63,14 @@ let currentRoom = 0;
 let transitioning = false;
 let transitionProgress = 0;
 let nextRoom = 0;
+
+let bossAttack = null;
+let bossAttackPhase = "idle";
+let bossAttackTimer = 0;
+let lastBossAttack = null;
+
+let bossDamageCooldown = 0;
+let bossLaughTimer = 0;
 
 const handMenu = {
     size: 125
@@ -152,14 +169,15 @@ const rooms = [
     {
         platforms: [
             { x: 0, y: 500, width: 1000, height: 110 },
-            { x: 150, y: 390, width: 200, height: 20 },
-            { x: 650, y: 390, width: 200, height: 20 }
+            { x: 150, y: 400, width: 200, height: 20 },
+            { x: 650, y: 400, width: 200, height: 20 },
+            { x: 400, y: 300, width: 200, height: 20}
         ],
         enemies: [
             {
                 x: 700,
                 y: 350,
-                width: 100,
+                width: 255,
                 height: 150,
                 health: 20,
                 vx: 0,
@@ -180,6 +198,27 @@ function drawPlayer() {
             canvas.width,
             canvas.height
         );
+    }
+    if (!gameStarted) {
+        ctx.fillStyle = "#080d20";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.textAlign = "center";
+
+        ctx.shadowColor = "#00ffff";
+        ctx.shadowBlur = 25;
+        ctx.fillStyle = "#00ffff";
+        ctx.font = "bold 80px Arial";
+        ctx.fillText("LELL-WORLD", canvas.width / 2, 250);
+        ctx.font = "bold 20px Arial"
+        ctx.fillText("REVENGE OF THE THIRD QUADRANT", canvas.width / 2, 290);
+
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "white";
+        ctx.font = "28px Arial";
+        ctx.fillText("Press ENTER to Play", canvas.width / 2, 370);
+
+        return;
     }
 
     if (playerImage.complete && playerImage.naturalWidth > 0) {
@@ -250,24 +289,194 @@ function drawPlayer() {
     }
 
     for (const enemy of enemies) {
-        ctx.fillStyle = "#ff3333";
-        ctx.fillRect(
-            enemy.x,
-            enemy.y,
-            enemy.width,
-            enemy.height
-        );
-        
-        ctx.fillStyle = "#333333";
-        ctx.fillRect(enemy.x, enemy.y - 12, enemy.width, 6);
+        if (currentRoom === 2 && enemy === enemies[0]) {
+            if (bossImage.complete && bossImage.naturalWidth > 0) {
+                ctx.drawImage(
+                    bossImage,
+                    enemy.x,
+                    enemy.y,
+                    255,
+                    150
+                );
+            }
+        } else {
+            ctx.fillStyle = "#ff3333";
+            ctx.fillRect(
+                enemy.x,
+                enemy.y,
+                enemy.width,
+                enemy.height
+            );
 
-        ctx.fillStyle = "#22ff66";
-        ctx.fillRect(
-            enemy.x,
-            enemy.y - 12,
-            enemy.width * (enemy.health / 3),
-            6
-        );
+            ctx.fillStyle = "#333333";
+            ctx.fillRect(enemy.x, enemy.y - 12, enemy.width, 6);
+
+            ctx.fillStyle = "#22ff66";
+            ctx.fillRect(
+                enemy.x,
+                enemy.y - 12,
+                enemy.width * (enemy.health / 3),
+                6
+            );
+        }
+        
+
+    }
+    if (currentRoom === 2 && bossAttack === "sin" && bossAttackPhase === "active") {
+        ctx.save();
+
+        ctx.strokeStyle = "#22ffff";
+        ctx.lineWidth = 5;
+        ctx.shadowColor = "#22ffff";
+        ctx.shadowBlur = 20;
+
+        ctx.beginPath();
+
+        for (let x = 0; x <= canvas.width; x += 5) {
+            const y = 300 - Math.sin(x * 0.03) * 100;
+
+            if (x === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+
+        
+        ctx.stroke();
+        ctx.restore();
+    }
+    if (
+        currentRoom === 2 &&
+        bossAttack === "sin" &&
+        bossAttackPhase === "warning"
+    ) {
+        ctx.save();
+
+        ctx.strokeStyle = "#22ffff";
+        ctx.lineWidth = 3;
+        ctx.setLineDash([10, 10]);
+
+        ctx.globalAlpha = Math.sin(Date.now() * 0.015) > 0 ? 1 : 0.2;
+
+        ctx.strokeRect(0, 200, canvas.width, 200);
+
+        ctx.restore();
+    }
+    if (
+        currentRoom === 2 &&
+        bossAttack === "tan" &&
+        bossAttackPhase === "warning"
+    ) {
+        ctx.save();
+
+        ctx.strokeStyle = "#ffcc33";
+        ctx.lineWidth = 3;
+        ctx.setLineDash([10, 10]);
+        ctx.globalAlpha = Math.sin(Date.now() * 0.015) > 0 ? 1 : 0.2;
+
+        ctx.strokeRect(50, 0, 200, canvas.height);
+        ctx.strokeRect(400, 0, 200, canvas.height);
+        ctx.strokeRect(750, 0, 200, canvas.height);
+
+        ctx.restore();
+    }
+    if (
+        currentRoom === 2 &&
+        bossAttack === "tan" &&
+        bossAttackPhase === "active"
+    ) {
+        ctx.save();
+
+        ctx.strokeStyle = "#ffcc33";
+        ctx.lineWidth = 5;
+        ctx.shadowColor = "#ffcc33";
+        ctx.shadowBlur = 20;
+
+        const centers = [150, 500, 850];
+
+        for (const center of centers) {
+            ctx.save();
+
+            ctx.beginPath();
+            ctx.rect(center - 100, 0, 200, canvas.height);
+            ctx.clip();
+
+            ctx.beginPath();
+
+            for (let x = center - 99; x <= center + 99; x += 1) {
+                const y = 300 - Math.tan((x - center) * Math.PI / 200) * 100;
+
+                if (x === center - 99) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        ctx.restore();
+    }
+    if (
+        currentRoom === 2 &&
+        bossAttack === "csc" &&
+        bossAttackPhase === "warning"
+    ) {
+        ctx.save();
+
+        ctx.strokeStyle = "#bb66ff";
+        ctx.lineWidth = 3;
+        ctx.setLineDash([10, 10]);
+        ctx.globalAlpha = Math.sin(Date.now() * 0.015) > 0 ? 1 : 0.2;
+
+        ctx.strokeRect(0, 0, canvas.width, 120);
+        ctx.strokeRect(0, canvas.height - 120, canvas.width, 120);
+
+        ctx.restore();
+    }
+    if (
+        currentRoom === 2 &&
+        bossAttack === "csc" &&
+        bossAttackPhase === "active"
+    ) {
+        ctx.save();
+        ctx.strokeStyle = "#bb66ff";
+        ctx.lineWidth = 5;
+        ctx.shadowColor = "#bb66ff";
+        ctx.shadowBlur = 20;
+
+        ctx.beginPath();
+        ctx.rect(0, 0, canvas.width, canvas.height);
+        ctx.clip();
+
+        ctx.beginPath();
+
+        let drawing = false;
+
+        for (let x = 0; x <= canvas.width; x += 1) {
+            const sinValue = Math.sin((x - 100) * 0.05);
+
+            // Cosecant is undefined where sine is zero
+            if (Math.abs(sinValue) < 0.56) {
+                drawing = false;
+                continue;
+            }
+
+            const y = 300 - (180 / sinValue);
+
+            if (!drawing) {
+                ctx.moveTo(x, y);
+                drawing = true;
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+
+        ctx.stroke();
+        ctx.restore();
     }
 
     for (const projectile of projectiles) {
@@ -420,6 +629,25 @@ function drawPlayer() {
         ctx.textAlign = "center";
         ctx.fillText("BOSS", 500, 17);
     }
+    if (gameWon) {
+        ctx.fillStyle = "white";
+        ctx.font = "60px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("YOU WIN!", canvas.width / 2, canvas.height / 2);
+    }
+    if (currentRoom === 0) {
+        ctx.save();
+
+        ctx.fillStyle = "white";
+        ctx.font = "24px Arial";
+        ctx.textAlign = "center";
+        ctx.shadowColor = "#00ffff";
+        ctx.shadowBlur = 12;
+
+        ctx.fillText("Press R to shoot", canvas.width / 2, 100);
+
+        ctx.restore();
+    }
 }
 
 drawPlayer();
@@ -435,6 +663,8 @@ document.addEventListener("keydown", function(event) {
             player.vy = -8;
             player.grounded = false;
             coyoteTime = 0;
+            jumpSound.currentTime = 0;
+            jumpSound.play();
         }
     }
     if (event.code === "KeyR" && !aiming && shotCooldown <= 0) {
@@ -443,6 +673,9 @@ document.addEventListener("keydown", function(event) {
     }
     if (aiming && ["1", "2", "3", "4", "5"].includes(event.key)) {
         selectedFinger = Number(event.key);
+    }
+    if (event.code === "Enter" && !gameStarted) {
+        gameStarted = true;
     }
 });
 
@@ -463,6 +696,8 @@ document.addEventListener("keyup", function(event) {
                 vx: Math.cos(angle) * 12 * player.facing,
                 vy: -Math.sin(angle) * 12
             });
+            shootSound.currentTime = 0;
+            shootSound.play();
             shotCooldown = 1;
         }
     }
@@ -488,7 +723,27 @@ function switchRoom(roomNumber) {
     player.vy = 0;
 }
 
+function chooseBossAttack() {
+    const attacks = ["sin", "tan", "csc"];
+
+    const availableAttacks = attacks.filter(
+        attack => attack !== lastBossAttack
+    );
+
+    bossAttack = availableAttacks[
+        Math.floor(Math.random() * availableAttacks.length)
+    ];
+
+    lastBossAttack = bossAttack;
+    bossAttackPhase = "warning";
+    bossAttackTimer = 0;
+}
+
+
 function gameLoop() {
+    if (currentRoom === 2) {
+        console.log("Attack:", bossAttack, "Phase:", bossAttackPhase);
+    }
     if (gameOver) {
         drawPlayer();
 
@@ -572,6 +827,110 @@ function gameLoop() {
             transitionProgress = 0;
         }
     }
+    if (currentRoom === 2 && enemies.length > 0) {
+    bossAttackTimer += 1 / 60;
+
+    if (bossAttackPhase === "idle" && bossAttackTimer >= 2) {
+            chooseBossAttack();
+        }
+
+        else if (bossAttackPhase === "warning" && bossAttackTimer >= 1) {
+            bossAttackPhase = "active";
+            bossAttackTimer = 0;
+        }
+
+        else if (bossAttackPhase === "active" && bossAttackTimer >= 2) {
+            bossAttackPhase = "recovery";
+            bossAttackTimer = 0;
+        }
+
+        else if (bossAttackPhase === "recovery" && bossAttackTimer >= 1) {
+            bossAttackPhase = "idle";
+            bossAttack = null;
+            bossAttackTimer = 0;
+        }
+    }
+    if (
+        currentRoom === 2 &&
+        bossAttack === "sin" &&
+        bossAttackPhase === "active" &&
+        bossDamageCooldown <= 0
+    ) {
+        const playerCenterX =
+            player.x + player.hitbox.x + player.hitbox.width / 2;
+
+        const playerCenterY =
+            player.y + player.hitbox.y + player.hitbox.height / 2;
+
+        const waveY = 300 - Math.sin(playerCenterX * 0.01) * 100;
+
+        if (Math.abs(playerCenterY - waveY) < 45) {
+            player.health -= 2;
+            bossDamageCooldown = 1;
+        }
+    }
+    if (
+        currentRoom === 2 &&
+        bossAttack === "tan" &&
+        bossAttackPhase === "active" &&
+        bossDamageCooldown <= 0
+    ) {
+        const playerCenterX =
+            player.x + player.hitbox.x + player.hitbox.width / 2;
+
+        const playerCenterY =
+            player.y + player.hitbox.y + player.hitbox.height / 2;
+
+        const centers = [150, 500, 850];
+
+        for (const center of centers) {
+            if (Math.abs(playerCenterX - center) < 100) {
+                const graphY =
+                    300 - Math.tan((playerCenterX - center) * Math.PI / 200) * 100;
+
+                if (Math.abs(playerCenterY - graphY) < 45) {
+                    player.health -= 2;
+                    bossDamageCooldown = 1;
+                    break;
+                }
+            }
+        }
+    }
+    if (
+        currentRoom === 2 &&
+        bossAttack === "csc" &&
+        bossAttackPhase === "active" &&
+        bossDamageCooldown <= 0
+    ) {
+        const playerCenterX =
+            player.x + player.hitbox.x + player.hitbox.width / 2;
+        const playerCenterY =
+            player.y + player.hitbox.y + player.hitbox.height / 2;
+
+        const sinValue = Math.sin((playerCenterX - 100) * 0.015);
+
+        if (Math.abs(sinValue) >= 0.56) {
+            const graphY = 300 - (180 / sinValue);
+
+            if (
+                graphY >= 0 &&
+                graphY <= canvas.height &&
+                Math.abs(playerCenterY - graphY) < 45
+            ) {
+                player.health -= 2;
+                bossDamageCooldown = 1;
+            }
+        }
+    }
+    if (currentRoom === 2) {
+        bossLaughTimer += 1 / 60;
+
+        if (bossLaughTimer >= 10) {
+            bossLaughSound.play();
+            bossLaughTimer = 0;
+        }
+    }
+    
 
     const previousX = player.x;
     const previousY = player.y;
@@ -593,6 +952,9 @@ function gameLoop() {
             ) {
                 enemy.health--;
                 projectile.hit = true;
+                if (currentRoom === 2 && enemy.health <= 0) {
+                    gameWon = true;
+                }
             }
         }
     }
@@ -602,6 +964,28 @@ function gameLoop() {
     enemies = enemies.filter(enemy => enemy.health > 0);
 
     for (const enemy of enemies) {
+        if (currentRoom === 2 && enemy === enemies[0]) {
+            let targetX = 700;
+            let targetY = 350;
+
+            if (bossAttack === "sin") {
+                targetX = 650;
+                targetY = 200;
+            }
+            else if (bossAttack === "tan") {
+                targetX = 450;
+                targetY = 50;
+            }
+            else if (bossAttack === "csc") {
+                targetX = 450;
+                targetY = -200;
+            }
+
+            enemy.x += (targetX - enemy.x) * 0.04;
+            enemy.y += (targetY - enemy.y) * 0.04;
+
+            continue;
+        }
         enemy.x += enemy.vx;
 
         if (enemy.x > 800 || enemy.x < 400) {
@@ -681,6 +1065,9 @@ function gameLoop() {
 
     if (damageCooldown > 0) {
         damageCooldown -= 1 / 60;
+    }
+    if (bossDamageCooldown > 0) {
+        bossDamageCooldown -= 1 / 60;
     }
 
     for (const enemy of enemies) {
