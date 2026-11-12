@@ -252,14 +252,6 @@ function drawPlayer() {
 
         ctx.restore();
     }
-    ctx.strokeStyle = "red";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(
-        player.x + player.hitbox.x,
-        player.y + player.hitbox.y,
-        player.hitbox.width,
-        player.hitbox.height
-    );
 
     ctx.fillStyle = "gray";   
 
